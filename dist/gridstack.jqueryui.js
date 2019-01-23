@@ -4,7 +4,8 @@
  * (c) 2014-2016 Pavel Reznikov, Dylan Weiss
  * gridstack.js may be freely distributed under the MIT license.
  * @preserve
-*/
+ *
+ */
 (function(factory) {
     if (typeof define === 'function' && define.amd) {
         define(['jquery', 'lodash', 'gridstack', 'jquery-ui/data', 'jquery-ui/disable-selection', 'jquery-ui/focusable',
@@ -26,9 +27,9 @@
     var scope = window;
 
     /**
-    * @class JQueryUIGridStackDragDropPlugin
-    * jQuery UI implementation of drag'n'drop gridstack plugin.
-    */
+     * @class JQueryUIGridStackDragDropPlugin
+     * jQuery UI implementation of drag'n'drop gridstack plugin.
+     */
     function JQueryUIGridStackDragDropPlugin(grid) {
         GridStackUI.GridStackDragDropPlugin.call(this, grid);
     }
