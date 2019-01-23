@@ -4,7 +4,9 @@
  * (c) 2014-2016 Pavel Reznikov, Dylan Weiss
  * gridstack.js may be freely distributed under the MIT license.
  * @preserve
-*/
+ *
+ * FORK by 3si 11.04.2018
+ */
 (function(factory) {
     if (typeof define === 'function' && define.amd) {
         define(['jquery', 'lodash'], factory);
@@ -22,7 +24,7 @@
     var obsolete = function(f, oldName, newName) {
         var wrapper = function() {
             console.warn('gridstack.js: Function `' + oldName + '` is deprecated as of v0.2.5 and has been replaced ' +
-            'with `' + newName + '`. It will be **completely** removed in v1.0.');
+                'with `' + newName + '`. It will be **completely** removed in v1.0.');
             return f.apply(this, arguments);
         };
         wrapper.prototype = f.prototype;
@@ -106,6 +108,52 @@
                 height = parseFloat(match[1]);
             }
             return {height: height, unit: heightUnit};
+        },
+        getScrollParent: function(el) {
+            var returnEl;
+            if (el == null) {
+                returnEl = null;
+            } else if (el.scrollHeight > el.clientHeight) {
+                returnEl = el;
+            } else {
+                returnEl = Utils.getScrollParent(el.parentNode);
+            }
+            return returnEl;
+        },
+        updateScrollPosition: function(el, ui, distance) {
+            // is widget in view?
+            var rect = el.getBoundingClientRect();
+            var innerHeightOrClientHeight = (window.innerHeight || document.documentElement.clientHeight);
+            if (rect.top < 0 ||
+                rect.bottom > innerHeightOrClientHeight
+            ) {
+                // set scrollTop of first parent that scrolls
+                // if parent is larger than el, set as low as possible
+                // to get entire widget on screen
+                var offsetDiffDown = rect.bottom - innerHeightOrClientHeight;
+                var offsetDiffUp = rect.top;
+                var scrollEl = Utils.getScrollParent(el);
+                var prevScroll = scrollEl.scrollTop;
+                if (scrollEl != null) {
+                    if (rect.top < 0 && distance < 0) {
+                        // moving up
+                        if (el.offsetHeight > innerHeightOrClientHeight) {
+                            scrollEl.scrollTop += distance;
+                        } else {
+                            scrollEl.scrollTop += Math.abs(offsetDiffUp) > Math.abs(distance) ? distance : offsetDiffUp;
+                        }
+                    } else if (distance > 0) {
+                        // moving down
+                        if (el.offsetHeight > innerHeightOrClientHeight) {
+                            scrollEl.scrollTop += distance;
+                        } else {
+                            scrollEl.scrollTop += offsetDiffDown > distance ? distance : offsetDiffDown;
+                        }
+                    }
+                    // move widget y by amount scrolled
+                    ui.position.top += scrollEl.scrollTop - prevScroll;
+                }
+            }
         }
     };
 
@@ -120,9 +168,9 @@
     // jscs:enable requireCamelCaseOrUpperCaseIdentifiers
 
     /**
-    * @class GridStackDragDropPlugin
-    * Base class for drag'n'drop plugin.
-    */
+     * @class GridStackDragDropPlugin
+     * Base class for drag'n'drop plugin.
+     */
     function GridStackDragDropPlugin(grid) {
         this.grid = grid;
     }
@@ -197,7 +245,9 @@
         var nn = node;
         var hasLocked = Boolean(_.find(this.nodes, function(n) { return n.locked; }));
         if (!this.float && !hasLocked) {
-            nn = {x: 0, y: node.y, width: this.width, height: node.height};
+            //@fix-sheldon pompé sur internet > améliore la fluidité lors des mouvements
+            //nn = {x: 0, y: node.y, width: this.width, height: node.height};
+            nn = {x: node.x, y: node.y, width: node.width, height: node.height};
         }
         while (true) {
             var collisionNode = _.find(this.nodes, _.bind(Utils._collisionNodeCheck, {node: node, nn: nn}));
@@ -516,6 +566,15 @@
         if (n) {
             n._updating = false;
         }
+
+        //@fix-sheldon cp 03.08.2017
+        //En fin de déplacement (de container ou d'objet) on réordonne le contenu html du container parent en fonction des coordonnées x et y des item
+        //Corrige les pb de saut de tabulation en cas de déplacement d'objet
+        $(this.nodes[0]._grid.container[0].parentElement).children().children(".grid-stack-item").sortElements(function(a, b){
+            var yxA = parseInt($(a).attr("data-gs-y") + $(a).attr("data-gs-x"));
+            var yxB = parseInt($(b).attr("data-gs-y") + $(b).attr("data-gs-x"));
+            return yxA > yxB ? 1 : -1;
+        });
     };
 
     var GridStack = function(el, opts) {
@@ -595,7 +654,7 @@
             }),
             draggable: _.defaults(opts.draggable || {}, {
                 handle: (opts.handleClass ? '.' + opts.handleClass : (opts.handle ? opts.handle : '')) ||
-                    '.grid-stack-item-content',
+                '.grid-stack-item-content',
                 scroll: false,
                 appendTo: 'body'
             }),
@@ -650,6 +709,11 @@
         this.grid = new GridStackEngine(this.opts.width, function(nodes, detachNode) {
             detachNode = typeof detachNode === 'undefined' ? true : detachNode;
             var maxHeight = 0;
+
+            _.each(this.nodes, function(n) {
+                maxHeight = Math.max(maxHeight, n.y + n.height);
+            });
+
             _.each(nodes, function(n) {
                 if (detachNode && n._id === null) {
                     if (n.el) {
@@ -661,7 +725,6 @@
                         .attr('data-gs-y', n.y)
                         .attr('data-gs-width', n.width)
                         .attr('data-gs-height', n.height);
-                    maxHeight = Math.max(maxHeight, n.y + n.height);
                 }
             });
             self._updateStyles(maxHeight + 10);
@@ -672,12 +735,12 @@
             var _this = this;
             this.container.children('.' + this.opts.itemClass + ':not(.' + this.opts.placeholderClass + ')')
                 .each(function(index, el) {
-                el = $(el);
-                elements.push({
-                    el: el,
-                    i: parseInt(el.attr('data-gs-x')) + parseInt(el.attr('data-gs-y')) * _this.opts.width
+                    el = $(el);
+                    elements.push({
+                        el: el,
+                        i: parseInt(el.attr('data-gs-x')) + parseInt(el.attr('data-gs-y')) * _this.opts.width
+                    });
                 });
-            });
             _.chain(elements).sortBy(function(x) { return x.i; }).each(function(i) {
                 self._prepareElement(i.el);
             }).value();
@@ -1001,6 +1064,7 @@
         if (this.grid._updateCounter) {
             return;
         }
+
         var height = this.grid.getGridHeight();
         this.container.attr('data-gs-current-height', height);
         if (!this.opts.cellHeight) {
@@ -1053,6 +1117,10 @@
         var cellWidth;
         var cellHeight;
 
+        //@fix-sheldon
+        var prev={x:null};
+        var limit={x:null};
+
         var dragOrResize = function(event, ui) {
             var x = Math.round(ui.position.left / cellWidth);
             var y = Math.floor((ui.position.top + cellHeight / 2) / cellHeight);
@@ -1064,8 +1132,16 @@
                 height = Math.round(ui.size.height / cellHeight);
             }
 
+            //@fix-sheldon
+            if (prev.x==null) prev.x=event.clientX;
+            if (limit.x==null && event.type != 'drag') limit.x=x+width;
+
             if (event.type == 'drag') {
-                if (x < 0 || x >= self.grid.width || y < 0 || (!self.grid.float && y > self.grid.getGridHeight())) {
+                var distance = ui.position.top - node._prevYPix;
+                node._prevYPix = ui.position.top;
+                Utils.updateScrollPosition(el[0], ui, distance);
+                if (el.data('inTrashZone') || x < 0 || x >= self.grid.width || y < 0 ||
+                    (!self.grid.float && y > self.grid.getGridHeight())) {
                     if (!node._temporaryRemoved) {
                         if (self.opts.removable === true) {
                             self._setupRemovingTimeout(el);
@@ -1102,12 +1178,30 @@
                     return;
                 }
             }
+
+            //@fix-sheldon pour gestion du resize vers la gauche avec le positionnement qui pouvait se faire à +/- 1 par rapport à a direction du resize
+            //self.grid.moveNode(node, x, y, width, height);
+            var shn={x:null,w:null};
+            if ($.gridstacksheldon.getResizeHandle()=='left' && event.type != 'drag') {
+                if (prev.x!=event.clientX) {
+                    if (prev.x<event.clientX) {
+                        shn = {x : x<0 ? 0 : x, w : limit.x-(x<0 ? 0 : x)};
+                    }
+                    else {
+                        shn = {x : limit.x-(width<node.minWidth ? node.minWidth : width), w : width<node.minWidth ? node.minWidth : width};
+                    }
+                    width=shn.w;
+                    x=shn.x;
+                    prev.x=event.clientX;
+                }
+            }
+
             // width and height are undefined if not resizing
             var lastTriedWidth = typeof width !== 'undefined' ? width : node.lastTriedWidth;
             var lastTriedHeight = typeof height !== 'undefined' ? height : node.lastTriedHeight;
             if (!self.grid.canMoveNode(node, x, y, width, height) ||
                 (node.lastTriedX === x && node.lastTriedY === y &&
-                node.lastTriedWidth === lastTriedWidth && node.lastTriedHeight === lastTriedHeight)) {
+                    node.lastTriedWidth === lastTriedWidth && node.lastTriedHeight === lastTriedHeight)) {
                 return;
             }
             node.lastTriedX = x;
@@ -1115,12 +1209,15 @@
             node.lastTriedWidth = width;
             node.lastTriedHeight = height;
             self.grid.moveNode(node, x, y, width, height);
+
             self._updateContainerHeight();
         };
 
         var onStartMoving = function(event, ui) {
             self.container.append(self.placeholder);
             var o = $(this);
+            //@fix-sheldon
+            limit.x=null;
             self.grid.cleanNodes();
             self.grid.beginUpdate(node);
             cellWidth = self.cellWidth();
@@ -1135,6 +1232,7 @@
             node.el = self.placeholder;
             node._beforeDragX = node.x;
             node._beforeDragY = node.y;
+            node._prevYPix = ui.position.top;
 
             self.dd.resizable(el, 'option', 'minWidth', cellWidth * (node.minWidth || 1));
             self.dd.resizable(el, 'option', 'minHeight', strictCellHeight * (node.minHeight || 1));
@@ -1146,6 +1244,8 @@
 
         var onEndMoving = function(event, ui) {
             var o = $(this);
+            //@fix-sheldon
+            limit.x=null;
             if (!o.data('_gridstack_node')) {
                 return;
             }
@@ -1260,7 +1360,7 @@
     };
 
     GridStack.prototype.addWidget = function(el, x, y, width, height, autoPosition, minWidth, maxWidth,
-        minHeight, maxHeight, id) {
+                                             minHeight, maxHeight, id) {
         el = $(el);
         if (typeof x != 'undefined') { el.attr('data-gs-x', x); }
         if (typeof y != 'undefined') { el.attr('data-gs-y', y); }
@@ -1679,7 +1779,7 @@
         'end_update', 'endUpdate');
     GridStackEngine.prototype.can_be_placed_with_respect_to_height =
         obsolete(GridStackEngine.prototype.canBePlacedWithRespectToHeight,
-        'can_be_placed_with_respect_to_height', 'canBePlacedWithRespectToHeight');
+            'can_be_placed_with_respect_to_height', 'canBePlacedWithRespectToHeight');
     GridStack.prototype._trigger_change_event = obsolete(GridStack.prototype._triggerChangeEvent,
         '_trigger_change_event', '_triggerChangeEvent');
     GridStack.prototype._init_styles = obsolete(GridStack.prototype._initStyles,
