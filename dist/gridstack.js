@@ -5,7 +5,6 @@
  * gridstack.js may be freely distributed under the MIT license.
  * @preserve
  *
- * FORK by 3si 11.04.2018
  */
 (function(factory) {
     if (typeof define === 'function' && define.amd) {
