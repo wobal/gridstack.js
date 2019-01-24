@@ -8,7 +8,7 @@
  */
 (function(factory) {
     if (typeof define === 'function' && define.amd) {
-        define(['jquery', 'lodash', 'wobal-gridstack/gridstack', 'jquery-ui/ui/data', 'jquery-ui/ui/disable-selection', 'jquery-ui/ui/focusable',
+        define(['jquery', 'lodash', 'wobal-gridstack', 'jquery-ui/ui/data', 'jquery-ui/ui/disable-selection', 'jquery-ui/ui/focusable',
             'jquery-ui/ui/form', 'jquery-ui/ui/ie', 'jquery-ui/ui/keycode', 'jquery-ui/ui/labels', 'jquery-ui/ui/jquery-1-7',
             'jquery-ui/ui/plugin', 'jquery-ui/ui/safe-active-element', 'jquery-ui/ui/safe-blur', 'jquery-ui/ui/scroll-parent',
             'jquery-ui/ui/tabbable', 'jquery-ui/ui/unique-id', 'jquery-ui/ui/version', 'jquery-ui/ui/widget',
